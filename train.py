@@ -16,7 +16,7 @@ import pytorch_ssim
 import mdn1
 from VT_AE import VT_AE as ae
 import argparse
-
+#
 ## Argparse declaration ##
 
 ap = argparse.ArgumentParser()
