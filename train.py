@@ -18,7 +18,43 @@ from VT_AE import VT_AE as ae
 import argparse
 
 ## Argparse declaration ##
-
+class NoamOpt:
+    "Optim wrapper that implements rate."
+    def __init__(self, model_size, factor, warmup, optimizer):
+        self.optimizer = optimizer
+        self._step = 0
+        self.warmup = warmup
+        self.factor = factor
+        self.model_size = model_size
+        self._rate = 0
+    
+    @property
+    def param_groups(self):
+        return self.optimizer.param_groups
+        
+    def multiply_grads(self, c):
+        """Multiplies grads by a constant *c*."""                
+        for group in self.param_groups:
+            for p in group['params']:
+                if p.grad is not None:
+                    p.grad.data.mul_(c)
+        
+    def step(self):
+        "Update parameters and rate"
+        self._step += 1
+        rate = self.rate()
+        for p in self.param_groups:
+            p['lr'] = rate
+        self._rate = rate
+        self.optimizer.step()
+        
+    def rate(self, step = None):
+        "Implement `lrate` above"
+        if step is None:
+            step = self._step
+        return 0 if not step else self.factor * \
+            (self.model_size ** (-0.5) *
+            min(step ** (-0.5), step * self.warmup ** (-1.5)))
 ap = argparse.ArgumentParser()
 ap.add_argument("-e", "--epochs", required=False, default= 400, help="Number of epochs to train")
 ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help="learning rate")
@@ -50,7 +86,14 @@ model.train()
 G_estimate.train()
 
 #Optimiser Declaration
-Optimiser = Adam(list(model.parameters())+list(G_estimate.parameters()), lr=args["learning_rate"], weight_decay=0.0001)
+encoder_embed_dim = 512
+lr_factor = 2
+lr_warmup = 4000
+Optimiser = optimizer = NoamOpt(
+    model_size=encoder_embed_dim, 
+    factor=lr_factor, 
+    warmup=lr_warmup, 
+    optimizer=torch.optim.AdamW(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9, weight_decay=0.0001))
 
 
 ############## TRAIN #####################
@@ -105,9 +148,9 @@ for i in range(epoch):
     if np.mean(t_loss) <= minloss:
         minloss = np.mean(t_loss)
         ep = i
-        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16', exist_ok=True)
-        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16/VT_AE_Mvtech_bs16__{prdt}'+'.pt')
-        torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saveed_model_bs16/G_estimate_Mvtech_bs16_{prdt}'+'.pt')
+        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample', exist_ok=True)
+        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample/VT_AE_Mvtech_bs16'+'.pt')
+        torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample/G_estimate_Mvtech_bs16_'+'.pt')
 
 
 '''
