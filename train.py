@@ -23,7 +23,7 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-e", "--epochs", required=False, default= 400, help="Number of epochs to train")
 ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help="learning rate")
 ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch size of the images")
-ap.add_argument("-b", "--batch_size", required=False, default=8, help= "batch size")
+ap.add_argument("-b", "--batch_size", required=False, default=16, help= "batch size")
 ap.add_argument("-w", "--workers", required=False, default=4, help= "Nb process")
 args = vars(ap.parse_args())
 
@@ -105,9 +105,9 @@ for i in range(epoch):
     if np.mean(t_loss) <= minloss:
         minloss = np.mean(t_loss)
         ep = i
-        os.makedirs('/content/gdrive/MyDrive/AnomaliesDetection/casting_front/saved_model', exist_ok=True)
-        torch.save(model.state_dict(), f'/content/gdrive/MyDrive/AnomaliesDetection/casting_front/saved_model/VT_AE_Mvtech_{prdt}'+'.pt')
-        torch.save(G_estimate.state_dict(), f'/content/gdrive/MyDrive/AnomaliesDetection/casting_front/saved_model/G_estimate_Mvtech_{prdt}'+'.pt')
+        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16', exist_ok=True)
+        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16/VT_AE_Mvtech_bs16__{prdt}'+'.pt')
+        torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saveed_model_bs16/G_estimate_Mvtech_bs16_{prdt}'+'.pt')
 
 
 '''
