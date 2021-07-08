@@ -77,7 +77,7 @@ train_loader = torch.utils.data.DataLoader(
         batch_size=args["batch_size"], shuffle=False,
         num_workers=args["workers"], pin_memory=False)
 # Model declaration
-model = ae(patch_size=args["patch_size"],train=True).cuda()
+model = ae(patch_size=args["patch_size"],depth=8, heads=16,train=True).cuda()
 G_estimate= mdn1.MDN().cuda()
 
 ### put model to train ##
@@ -88,7 +88,7 @@ G_estimate.train()
 #Optimiser Declaration
 encoder_embed_dim = 512
 lr_factor = 2
-lr_warmup = 4000
+lr_warmup = 10000
 Optimiser = optimizer = NoamOpt(
     model_size=encoder_embed_dim, 
     factor=lr_factor, 
@@ -112,11 +112,9 @@ for i in range(epoch):
 
         #Loss calculations
         loss1 = F.mse_loss(reconstructions, m.cuda(), reduction='mean') #Rec Loss
-        print(reconstructions.shape, m.shape)
         loss2 = -ssim_loss(m.cuda(), reconstructions) #SSIM loss for structural similarity
         loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
 
-        print(f' loss3  : {loss3.item()}')
         loss = 5*loss1 + 0.5*loss2 + loss3       #Total loss
 
         t_loss.append(loss.item())   #storing all batch losses to calculate mean epoch loss
