@@ -61,6 +61,8 @@ ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help=
 ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch size of the images")
 ap.add_argument("-b", "--batch_size", required=False, default=16, help= "batch size")
 ap.add_argument("-w", "--workers", required=False, default=4, help= "Nb process")
+ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1', help= "Nb gpus")
+
 args = vars(ap.parse_args())
 
 writer = SummaryWriter()
@@ -77,8 +79,21 @@ train_loader = torch.utils.data.DataLoader(
         batch_size=args["batch_size"], shuffle=False,
         num_workers=args["workers"], pin_memory=False)
 # Model declaration
-model = ae(patch_size=args["patch_size"],depth=8, heads=16,train=True).cuda()
-G_estimate= mdn1.MDN().cuda()
+if torch.cuda.device_count() > 1:
+    print("Let's use", torch.cuda.device_count(), "GPUs!")
+    
+model = ae(patch_size=args["patch_size"],depth=10, heads=16,train=True)
+G_estimate= mdn1.MDN()
+use_cuda = torch.cuda.is_available()
+if use_cuda:
+    print( args['gpu_ids'].split(','))
+    gpu_ids = list(map(int, args['gpu_ids'].split(',')))
+    cuda='cuda:'+ str(gpu_ids[0])
+    model = torch.nn.DataParallel(model,device_ids=gpu_ids)
+    G_estimate = torch.nn.DataParallel(G_estimate,device_ids=gpu_ids)
+device= torch.device(cuda if use_cuda else 'cpu')
+model.to(device)
+G_estimate.to(device)
 
 ### put model to train ##
 #(The two models are trained as a separate module so that it would be easy to use as an independent module in different scenarios)
@@ -88,7 +103,7 @@ G_estimate.train()
 #Optimiser Declaration
 encoder_embed_dim = 512
 lr_factor = 2
-lr_warmup = 10000
+lr_warmup = 4000
 Optimiser = optimizer = NoamOpt(
     model_size=encoder_embed_dim, 
     factor=lr_factor, 
@@ -103,7 +118,7 @@ print('\nNetwork training started.....')
 for i in range(epoch):
     t_loss = []
 
-    for j, m in train_loader:
+    for ii, (j, m) in enumerate(train_loader):
         model.zero_grad()
 
         # vector,pi, mu, sigma, reconstructions = model(j.cuda())
@@ -116,14 +131,16 @@ for i in range(epoch):
         loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
 
         loss = 5*loss1 + 0.5*loss2 + loss3       #Total loss
-
+        print('loss  ', loss.item())
         t_loss.append(loss.item())   #storing all batch losses to calculate mean epoch loss
 
         # Tensorboard definitions
-        writer.add_scalar('recon-loss', loss1.item(), i)
-        writer.add_scalar('ssim loss', loss2.item(), i)
-        writer.add_scalar('Gaussian loss', loss3.item(), i)
-        writer.add_histogram('Vectors', vector)
+        if ii % 1000 == 0:
+            writer.add_scalar('recon-loss', loss1.item(), (ii+1) + i*len(train_loader))
+            writer.add_scalar('ssim loss', loss2.item(), (ii+1) + i*len(train_loader))
+            writer.add_scalar('Gaussian loss', loss3.item(),  (ii+1) + i*len(train_loader))
+            writer.add_scalar('loss', loss.item(),  (ii+1) + i*len(train_loader))
+            writer.add_histogram('Vectors', vector)
 
         ## Uncomment below to store the distributions of pi, var and mean ##
         # writer.add_histogram('Pi', pi)
@@ -147,8 +164,8 @@ for i in range(epoch):
         minloss = np.mean(t_loss)
         ep = i
         os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample', exist_ok=True)
-        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample/VT_AE_Mvtech_bs16'+'.pt')
-        torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample/G_estimate_Mvtech_bs16_'+'.pt')
+        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample/VT_AE_MNIST_bs16_head16'+'.pt')
+        torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample/VT_AE_MNIST_bs16_head16'+'.pt')
 
 
 '''

@@ -44,21 +44,21 @@ def add_noise(latent, noise_type="gaussian", sd=0.2):
         return latent
 
 class Mvtec(data.Dataset):
-	def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/Sample100kTiles.txt"):
-		self.root = root
-		torch.manual_seed(123)
-		with open(root, 'r') as f:
-			content =  f.readlines()
-		self.files_list = []
-		for x in content:
-			x =  x.strip()
-			if x.find('reject') == -1:
-				self.files_list.append(x)
+    def __init__(self, root="/linkhome/rech/genkmw01/ueu39kt/osutils/MNIST.txt"):
+        self.root = root
+        torch.manual_seed(123)
+        with open(root, 'r') as f:
+            content =  f.readlines()
+        self.files_list = []
+        for x in content:
+            x =  x.strip()
+            if x.find('reject') == -1:
+                self.files_list.append(x)
 
         ## Image Transformation ##
-		# High color augmntation
-		# Random orientation
-		self.transform = transforms.Compose([
+        # High color augmntation
+        # Random orientation
+        self.transform = transforms.Compose([
             transforms.Resize((550,550)),
             transforms.CenterCrop(512),
             transforms.RandomHorizontalFlip(p=0.5),
@@ -68,15 +68,19 @@ class Mvtec(data.Dataset):
 #            transforms.Normalize((0.1307,), (0.3081,)),
         ])
 
-	def __getitem__(self,index):
-		img =  Image.open(self.files_list[index])
-		if self.transform is not None:
-			img_c = self.transform(img)
-		img_n = add_noise(img_c)
-		return (img_n, img_c)
+    def __getitem__(self,index):
+        img =  Image.open(self.files_list[index])
+        w, h = img.size
+        ima = Image.new('RGB', (w,h))
+        data = zip(img.getdata(), img.getdata(), img.getdata())
+        ima.putdata(list(data))
+        if self.transform is not None:
+            img_c = self.transform(ima)
+        img_n = add_noise(img_c)
+        return (img_n, img_c)
 
-	def __len__(self):
-		return len(self.files_list)
+    def __len__(self):
+        return len(self.files_list)
 
 
 if __name__ == "__main__":
