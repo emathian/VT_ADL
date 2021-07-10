@@ -59,8 +59,10 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-e", "--epochs", required=False, default= 400, help="Number of epochs to train")
 ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help="learning rate")
 ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch size of the images")
-ap.add_argument("-b", "--batch_size", required=False, default=16, help= "batch size")
+ap.add_argument("-b", "--batch_size", required=False, default=64, help= "batch size")
 ap.add_argument("-w", "--workers", required=False, default=4, help= "Nb process")
+ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1,2,3', help= "Nb gpus")
+
 args = vars(ap.parse_args())
 
 writer = SummaryWriter()
@@ -77,8 +79,18 @@ train_loader = torch.utils.data.DataLoader(
         batch_size=args["batch_size"], shuffle=False,
         num_workers=args["workers"], pin_memory=False)
 # Model declaration
-model = ae(patch_size=args["patch_size"],depth=8, heads=16,train=True).cuda()
-G_estimate= mdn1.MDN().cuda()
+model = ae(patch_size=args["patch_size"],depth=10, heads=16,train=True)
+G_estimate= mdn1.MDN()
+use_cuda = torch.cuda.is_available()
+if use_cuda:
+    print( args['gpu_ids'].split(','))
+    gpu_ids = list(map(int, args['gpu_ids'].split(',')))
+    cuda='cuda:'+ str(gpu_ids[0])
+    model = torch.nn.DataParallel(model,device_ids=gpu_ids)
+    G_estimate = torch.nn.DataParallel(G_estimate,device_ids=gpu_ids)
+device= torch.device(cuda if use_cuda else 'cpu')
+model.to(device)
+G_estimate.to(device)
 
 ### put model to train ##
 #(The two models are trained as a separate module so that it would be easy to use as an independent module in different scenarios)
@@ -109,7 +121,7 @@ for i in range(epoch):
         # vector,pi, mu, sigma, reconstructions = model(j.cuda())
         vector, reconstructions = model(j.cuda())
         pi, mu, sigma = G_estimate(vector)
-
+        #print(pi, mu, sigma)
         #Loss calculations
         loss1 = F.mse_loss(reconstructions, m.cuda(), reduction='mean') #Rec Loss
         loss2 = -ssim_loss(m.cuda(), reconstructions) #SSIM loss for structural similarity
@@ -132,6 +144,9 @@ for i in range(epoch):
 
         #Optimiser step
         loss.backward()
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0, norm_type=2)
+        torch.nn.utils.clip_grad_norm_(G_estimate.parameters(), max_norm=2.0, norm_type=2)
+
         Optimiser.step()
 
     #Tensorboard definitions for the mean epoch values

@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-COEFS = 10
+COEFS = 50
 IN_DIM = 512
 OUT_DIM = IN_DIM
 
@@ -33,7 +33,7 @@ class MDN(nn.Module):
 
     def forward(self, x):
         ep = np.finfo(float).eps
-        x = torch.clamp(x, ep)
+        x = torch.clamp(x, min=-10e+6, max=10e+6)
 
         pi = F.softmax(self.pi(x), dim=-1)
         sigma_sq = F.softplus(self.sigma_sq(x)).view(x.size(0),x.size(1),self.in_features, -1)  # logvar
