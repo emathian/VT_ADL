@@ -44,7 +44,7 @@ def add_noise(latent, noise_type="gaussian", sd=0.2):
         return latent
 
 class Mvtec(data.Dataset):
-    def __init__(self, root="/linkhome/rech/genkmw01/ueu39kt/osutils/MNIST.txt"):
+    def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/MNIST.txt"):
         self.root = root
         torch.manual_seed(123)
         with open(root, 'r') as f:

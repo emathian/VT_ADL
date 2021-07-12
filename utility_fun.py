@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from skimage.measure import label
+import os
 
 
 def Normalise(score_map):
@@ -49,7 +50,12 @@ def Binarization(mask, thres = 0., type = 0):
         mask = np.where(mask > thres, mask, 0.)
     return mask  
 
-def plot(image,grnd_truth, score):
+def plot(image,grnd_truth, score, outputfilename):
+    try:
+        os.mkdir('/gpfsscratch/rech/ohv/ueu39kt/outputImg')
+    except:
+        print('outputFolder already exist' )
+    outputmaindir = '/gpfsscratch/rech/ohv/ueu39kt/outputImg'
     plt.subplot(131)
     plt.imshow(image[0].permute(1,2,0))
     plt.subplot(132)
@@ -62,6 +68,7 @@ def plot(image,grnd_truth, score):
     # plt.imshow(score[0].permute(1,2,0), cmap='Reds')
     plt.colorbar()
     plt.pause(1) 
+    plt.save(os.path.join(outputmaindir,outputfilename ))
     plt.show()          
 def binImage(heatmap, thres=0 ):
     _, heatmap_bin = cv2.threshold(heatmap , thres , 255 , cv2.THRESH_BINARY+cv2.THRESH_OTSU)
