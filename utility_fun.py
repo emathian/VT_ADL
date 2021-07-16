@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import cv2
 from skimage.measure import label
-
+import os
 
 def Normalise(score_map):
     max_score = score_map.max()
@@ -49,20 +49,27 @@ def Binarization(mask, thres = 0., type = 0):
         mask = np.where(mask > thres, mask, 0.)
     return mask  
 
-def plot(image,grnd_truth, score):
-    plt.subplot(131)
-    plt.imshow(image[0].permute(1,2,0))
-    plt.subplot(132)
-    plt.imshow(grnd_truth.squeeze(0).squeeze(0))
-    plt.xlabel('ground truth')
-    plt.subplot(133)
-    plt.imshow(score)
-    plt.xlabel('predicted')
-    # plt.title('Anomaly score')
-    # plt.imshow(score[0].permute(1,2,0), cmap='Reds')
-    plt.colorbar()
-    plt.pause(1) 
-    plt.show()          
+def plot(image,grnd_truth, score, title):
+    print('Images ' , image.shape)
+    print('grnd_truth ' , grnd_truth.shape)
+    print('score ' , score.shape)
+    score = score.cpu().detach().numpy()
+
+    for k in range(image.shape[0]):
+        plt.subplot(131)
+        plt.imshow(image[k].permute(1,2,0))
+        plt.subplot(132)
+        plt.imshow(grnd_truth[k].permute(1,2,0))
+        plt.xlabel('ground truth')
+        plt.subplot(133)
+        plt.imshow( np.transpose(score[k], (1,2,0))) 
+        plt.xlabel('predicted')
+        # plt.title('Anomaly score')
+        # plt.imshow(score[0].permute(1,2,0), cmap='Reds')
+        plt.colorbar()
+        #plt.pause(1) 
+        title = title.split('.')[0]+'_'+str(k) + '.png'
+        plt.savefig( title)     
 def binImage(heatmap, thres=0 ):
     _, heatmap_bin = cv2.threshold(heatmap , thres , 255 , cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     # t in the paper
