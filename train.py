@@ -61,7 +61,7 @@ ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help=
 ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch size of the images")
 ap.add_argument("-b", "--batch_size", required=False, default=32, help= "batch size")
 ap.add_argument("-w", "--workers", required=False, default=4, help= "Nb process")
-ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1,2,3', help= "Nb gpus")
+ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1,2', help= "Nb gpus")
 
 args = vars(ap.parse_args())
 
@@ -80,7 +80,7 @@ train_loader = torch.utils.data.DataLoader(
         num_workers=args["workers"], pin_memory=False)
 # Model declaration
 model = ae(patch_size=args["patch_size"],depth=10, heads=16,train=True)
-G_estimate= mdn1.MDN()
+#G_estimate= mdn1.MDN()
 use_cuda = torch.cuda.is_available()
 if use_cuda:
     print( args['gpu_ids'].split(','))
@@ -91,7 +91,7 @@ if use_cuda:
 device= torch.device(cuda if use_cuda else 'cpu')
 
 
-model.load_state_dict(torch.load('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207_fromPretrained_NoMDN/VT_AE_Mvtech_bs16.pt'))
+#model.load_state_dict(torch.load('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207_fromPretrained_NoMDN_MSE_NewLoss/VT_AE_Mvtech_bs16.pt'))
 
 #G_estimate.load_state_dict(torch.load('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207/G_estimate_Mvtech_bs16_.pt'))
 
@@ -106,13 +106,13 @@ model.train()
 #Optimiser Declaration
 encoder_embed_dim = 512
 lr_factor = 2
-lr_warmup = 10000
+lr_warmup = 4000
 Optimiser = optimizer = NoamOpt(
     model_size=encoder_embed_dim, 
     factor=lr_factor, 
     warmup=lr_warmup, 
     optimizer=torch.optim.AdamW(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9, weight_decay=0.0001))
-
+#Optimiser = Adam(list(model.parameters())+list(G_estimate.parameters()), lr=args["learning_rate"], weight_decay=0.0001)
 
 ############## TRAIN #####################
 # torch.autograd.set_detect_anomaly(True) #uncomment if you want to track an error
@@ -121,7 +121,7 @@ print('\nNetwork training started.....')
 for i in range(epoch):
     t_loss = []
 
-    for j, m in train_loader:
+    for c, j in enumerate(train_loader):
         model.zero_grad()
 
         # vector,pi, mu, sigma, reconstructions = model(j.cuda())
@@ -129,17 +129,17 @@ for i in range(epoch):
         #pi, mu, sigma = G_estimate(vector)
         #print(pi, mu, sigma)
         #Loss calculations
-        loss1 = F.mse_loss(reconstructions, m.cuda(), reduction='mean') #Rec Loss
-        loss2 = 1-ssim_loss(m.cuda(), reconstructions) #SSIM loss for structural similarity
+        loss1 = F.mse_loss(reconstructions, j.cuda(), reduction='mean') #Rec Loss
+        loss2 = 1-ssim_loss(j.cuda(), reconstructions) #SSIM loss for structural similarity
         #loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
 
-        loss = 5*loss1 + loss2 #+ loss3       #Total loss
+        loss = 5*loss1 + 0.5*loss2 #+ loss3       #Total loss
         print('Loss ', loss.item())
         t_loss.append(loss.item())   #storing all batch losses to calculate mean epoch loss
 
         # Tensorboard definitions
-        writer.add_scalar('recon-loss', loss1.item(), i)
-        writer.add_scalar('ssim loss', loss2.item(), i)
+        writer.add_scalar('recon-loss', loss1.item(), i*len(train_loader)* args["batch_size"] + (c+1))
+        writer.add_scalar('ssim loss', loss2.item(), i*len(train_loader)* args["batch_size"] + (c+1))
         #writer.add_scalar('Gaussian loss', loss3.item(), i)
         writer.add_histogram('Vectors', vector)
 
@@ -167,8 +167,8 @@ for i in range(epoch):
     if np.mean(t_loss) <= minloss:
         minloss = np.mean(t_loss)
         ep = i
-        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207_fromPretrained_NoMDN_MSE_NewLoss', exist_ok=True)
-        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207_fromPretrained_NoMDN_MSE_NewLoss/VT_AE_Mvtech_bs16'+'.pt')
+        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/saved_model_TumorNormalScratch', exist_ok=True)
+        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_TumorNormalScratch/VT_AE_TumorNormal_bs16'+'.pt')
         #torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207_fromPretrained/G_estimate_Mvtech_bs16_'+'.pt')
 
 

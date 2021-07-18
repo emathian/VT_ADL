@@ -44,7 +44,7 @@ def add_noise(latent, noise_type="gaussian", sd=0.2):
         return latent
 
 class Mvtec(data.Dataset):
-	def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/Sample100kTiles.txt"):
+	def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/Normal_Tiles_HENORM.txt"):
 		self.root = root
 		torch.manual_seed(123)
 		with open(root, 'r') as f:
@@ -72,8 +72,8 @@ class Mvtec(data.Dataset):
 		img =  Image.open(self.files_list[index])
 		if self.transform is not None:
 			img_c = self.transform(img)
-		img_n = add_noise(img_c)
-		return (img_n, img_c)
+		#img_n = add_noise(img_c)
+		return img_c
 
 	def __len__(self):
 		return len(self.files_list)
