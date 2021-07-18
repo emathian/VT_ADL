@@ -52,7 +52,7 @@ class Mvtec(data.Dataset):
         self.files_list = []
         for x in content:
             x =  x.strip()
-            if x.find('reject') == -1:
+            if x.find('reject') == -1 and x.find('0') != -1:
                 self.files_list.append(x)
 
         ## Image Transformation ##
@@ -76,8 +76,8 @@ class Mvtec(data.Dataset):
         ima.putdata(list(data))
         if self.transform is not None:
             img_c = self.transform(ima)
-        img_n = add_noise(img_c)
-        return (img_n, img_c)
+        #img_n = add_noise(img_c)
+        return img_c#)
 
     def __len__(self):
         return len(self.files_list)
