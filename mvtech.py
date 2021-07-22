@@ -44,7 +44,7 @@ def add_noise(latent, noise_type="gaussian", sd=0.2):
         return latent
 
 class Mvtec(data.Dataset):
-    def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/MNIST.txt"):
+    def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/MNIST.txt", train = True):
         self.root = root
         torch.manual_seed(123)
         with open(root, 'r') as f:
@@ -52,8 +52,12 @@ class Mvtec(data.Dataset):
         self.files_list = []
         for x in content:
             x =  x.strip()
-            if x.find('reject') == -1 and x.find('0') != -1:
-                self.files_list.append(x)
+            if train:
+                if x.find('reject') == -1 and x.split('/')[-2] == '0':
+                    self.files_list.append(x)
+            else:
+                if x.find('reject') == -1 :
+                    self.files_list.append(x)
 
         ## Image Transformation ##
         # High color augmntation
@@ -61,8 +65,8 @@ class Mvtec(data.Dataset):
         self.transform = transforms.Compose([
             transforms.Resize((550,550)),
             transforms.CenterCrop(512),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomVerticalFlip(p=0.5),
+#             transforms.RandomHorizontalFlip(p=0.5),
+#             transforms.RandomVerticalFlip(p=0.5),
             transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0),
             transforms.ToTensor(),
 #            transforms.Normalize((0.1307,), (0.3081,)),
@@ -74,10 +78,11 @@ class Mvtec(data.Dataset):
         ima = Image.new('RGB', (w,h))
         data = zip(img.getdata(), img.getdata(), img.getdata())
         ima.putdata(list(data))
+        label = self.files_list[index].split('/')[-2]
         if self.transform is not None:
             img_c = self.transform(ima)
         #img_n = add_noise(img_c)
-        return img_c#)
+        return (img_c, label)#scan)
 
     def __len__(self):
         return len(self.files_list)

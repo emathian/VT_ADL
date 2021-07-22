@@ -12,7 +12,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-COEFS = 10
+COEFS = 150
 IN_DIM = 512
 OUT_DIM = IN_DIM
 
