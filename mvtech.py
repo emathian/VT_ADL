@@ -44,21 +44,23 @@ def add_noise(latent, noise_type="gaussian", sd=0.2):
         return latent
 
 class Mvtec(data.Dataset):
-	def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/Normal_Tiles_HENORM.txt"):
-		self.root = root
-		torch.manual_seed(123)
-		with open(root, 'r') as f:
-			content =  f.readlines()
-		self.files_list = []
-		for x in content:
-			x =  x.strip()
-			if x.find('reject') == -1:
-				self.files_list.append(x)
+    def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/LNEN_Tiles.txt", test = False):
+        self.test = test
+        print('self.test', self.test)
+        self.root = root
+        torch.manual_seed(123)
+        with open(root, 'r') as f:
+            content =  f.readlines()
+        self.files_list = []
+        for x in content:
+            x =  x.strip()
+            if x.find('reject') == -1:
+                self.files_list.append(x)
 
         ## Image Transformation ##
-		# High color augmntation
-		# Random orientation
-		self.transform = transforms.Compose([
+        # High color augmntation
+        # Random orientation
+        self.transform = transforms.Compose([
             transforms.Resize((550,550)),
             transforms.CenterCrop(512),
             transforms.RandomHorizontalFlip(p=0.5),
@@ -68,15 +70,24 @@ class Mvtec(data.Dataset):
 #            transforms.Normalize((0.1307,), (0.3081,)),
         ])
 
-	def __getitem__(self,index):
-		img =  Image.open(self.files_list[index])
-		if self.transform is not None:
-			img_c = self.transform(img)
-		#img_n = add_noise(img_c)
-		return img_c
+    def __getitem__(self,index):
+        img =  Image.open(self.files_list[index])
+        if self.root.find('MNIST') != -1:
+            label = self.files_list[index].split('/')[-2]
+        else:
+            label = self.files_list[index]
+        if self.transform is not None:
+            img_c = self.transform(img)
+        #img_n = add_noise(img_c)
+        if self.test:
+            print('HERE  ', label)
+            return img_c, label
+        else:
+            print('HERE2  ')
+            return img_c#, label
 
-	def __len__(self):
-		return len(self.files_list)
+    def __len__(self):
+        return len(self.files_list)
 
 
 if __name__ == "__main__":
@@ -85,14 +96,14 @@ if __name__ == "__main__":
     # Train_data(root, 'all')
     # print('======== All Anomaly Data ============')
     # Test_anom_data(root,'all')
-	batch_size = 1
-	trainds = Mvtec()
-	train_loader  = torch.utils.data.DataLoader(trainds, batch_size=batch_size, shuffle=True)
-	for i, j in train_loader:
-		i = i[0,:,:,:]
-		i = i.numpy()
-		b  = (i - np.min(i)) /  np.ptp(i)
+    batch_size = 1
+    trainds = Mvtec()
+    train_loader  = torch.utils.data.DataLoader(trainds, batch_size=batch_size, shuffle=True)
+    for i, j in train_loader:
+        i = i[0,:,:,:]
+        i = i.numpy()
+        b  = (i - np.min(i)) /  np.ptp(i)
 
-		plt.imshow(b.transpose(1,2,0))
-		plt.savefig('original.png')
-		break
+        plt.imshow(b.transpose(1,2,0))
+        plt.savefig('original.png')
+        break

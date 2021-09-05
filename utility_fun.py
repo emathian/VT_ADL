@@ -49,27 +49,37 @@ def Binarization(mask, thres = 0., type = 0):
         mask = np.where(mask > thres, mask, 0.)
     return mask  
 
-def plot(image,grnd_truth, score, title):
-    print('Images ' , image.shape)
-    print('grnd_truth ' , grnd_truth.shape)
-    print('score ' , score.shape)
-    score = score.cpu().detach().numpy()
-
-    for k in range(image.shape[0]):
-        plt.subplot(131)
-        plt.imshow(image[k].permute(1,2,0))
-        plt.subplot(132)
-        plt.imshow(grnd_truth[k].permute(1,2,0))
-        plt.xlabel('ground truth')
-        plt.subplot(133)
-        plt.imshow( np.transpose(score[k], (1,2,0))) 
-        plt.xlabel('predicted')
-        # plt.title('Anomaly score')
-        # plt.imshow(score[0].permute(1,2,0), cmap='Reds')
-        plt.colorbar()
-        #plt.pause(1) 
-        title = title.split('.')[0]+'_'+str(k) + '.png'
-        plt.savefig( title)     
+def plot(image,grnd_truth, outputfilename, score=None , dirImg = None):
+    if not dirImg:
+        try:
+            os.mkdir('/gpfsscratch/rech/ohv/ueu39kt/outputImg')
+        except:
+            print('outputFolder already exist' )
+        outputmaindir = '/gpfsscratch/rech/ohv/ueu39kt/outputImg'
+    else:
+        try:
+            os.mkdir(dirImg)
+        except:
+            print('outputFolder already exist' )
+        outputmaindir =dirImg
+    plt.subplot(121)
+#     print('image shape ', image.shape)
+    im =np.transpose(image[0],(1,2,0)) * 255
+    plt.imshow(im.astype(np.uint8))
+    plt.subplot(122)
+#     print('grnd_truth shape ', grnd_truth.shape)
+    re = np.transpose(grnd_truth[0],(1,2,0)) * 255
+    plt.imshow(re.astype(np.uint8))  
+    plt.xlabel('Reconstruction')
+    #plt.subplot(133)
+    #plt.imshow(score)
+    #plt.xlabel('predicted')
+    #plt.title('Anomaly score')
+    #plt.imshow(score[0].permute(1,2,0), cmap='Reds')
+    #plt.colorbar()
+    #plt.pause(1) 
+    plt.savefig(os.path.join(outputmaindir,outputfilename ))
+    #plt.show()          
 def binImage(heatmap, thres=0 ):
     _, heatmap_bin = cv2.threshold(heatmap , thres , 255 , cv2.THRESH_BINARY+cv2.THRESH_OTSU)
     # t in the paper

@@ -56,12 +56,12 @@ class NoamOpt:
             (self.model_size ** (-0.5) *
             min(step ** (-0.5), step * self.warmup ** (-1.5)))
 ap = argparse.ArgumentParser()
-ap.add_argument("-e", "--epochs", required=False, default= 400, help="Number of epochs to train")
+ap.add_argument("-e", "--epochs", required=False, default= 100, help="Number of epochs to train")
 ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help="learning rate")
 ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch size of the images")
-ap.add_argument("-b", "--batch_size", required=False, default=32, help= "batch size")
+ap.add_argument("-b", "--batch_size", required=False, default=8, help= "batch size")
 ap.add_argument("-w", "--workers", required=False, default=4, help= "Nb process")
-ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1,2', help= "Nb gpus")
+ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1', help= "Nb gpus")
 
 args = vars(ap.parse_args())
 
@@ -73,7 +73,7 @@ ep =0
 ssim_loss = pytorch_ssim.SSIM() # SSIM Loss
 
 #Dataset
-train_dset = mvtech.Mvtec()
+train_dset = mvtech.Mvtec(root= '/gpfsscratch/rech/ohv/ueu39kt/Typical_Sample_Training.csv')
 train_loader = torch.utils.data.DataLoader(
         train_dset,
         batch_size=args["batch_size"], shuffle=False,
@@ -91,17 +91,18 @@ if use_cuda:
 device= torch.device(cuda if use_cuda else 'cpu')
 
 
-#model.load_state_dict(torch.load('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207_fromPretrained_NoMDN_MSE_NewLoss/VT_AE_Mvtech_bs16.pt'))
+model.load_state_dict(torch.load('/gpfswork/rech/ohv/ueu39kt/MNIST_Norm0_VT_ADL/VT_AE_MNIST0_bs16.pt'))
 
-#G_estimate.load_state_dict(torch.load('/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207/G_estimate_Mvtech_bs16_.pt'))
+print('Model loaded :)')
+#G_estimate.load_state_dict(torch.load('/gpfsscratch/rech/ohv/ueu39kt/TumorNoTumor_fromMNISTMDN/G_estimate_tumorNotumor_bs16_.pt'))
 
 model.to(device)
 #G_estimate.to(device)
 
-### put model to train ##
+# ### put model to train ##
 #(The two models are trained as a separate module so that it would be easy to use as an independent module in different scenarios)
 model.train()
-#G_estimate.train()
+# G_estimate.train()
 
 #Optimiser Declaration
 encoder_embed_dim = 512
@@ -114,7 +115,7 @@ Optimiser = optimizer = NoamOpt(
     optimizer=torch.optim.AdamW(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9, weight_decay=0.0001))
 #Optimiser = Adam(list(model.parameters())+list(G_estimate.parameters()), lr=args["learning_rate"], weight_decay=0.0001)
 
-############## TRAIN #####################
+# ############## TRAIN #####################
 # torch.autograd.set_detect_anomaly(True) #uncomment if you want to track an error
 
 print('\nNetwork training started.....')
@@ -140,18 +141,18 @@ for i in range(epoch):
         # Tensorboard definitions
         writer.add_scalar('recon-loss', loss1.item(), i*len(train_loader)* args["batch_size"] + (c+1))
         writer.add_scalar('ssim loss', loss2.item(), i*len(train_loader)* args["batch_size"] + (c+1))
-        #writer.add_scalar('Gaussian loss', loss3.item(), i)
+#         writer.add_scalar('Gaussian loss', loss3.item(), i)
         writer.add_histogram('Vectors', vector)
 
         ## Uncomment below to store the distributions of pi, var and mean ##
-        # writer.add_histogram('Pi', pi)
-        # writer.add_histogram('Variance', sigma)
-        # writer.add_histogram('Mean', mu)
+#         writer.add_histogram('Pi', pi)
+#         writer.add_histogram('Variance', sigma)
+#         writer.add_histogram('Mean', mu)
 
         #Optimiser step
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0, norm_type=2)
-        #torch.nn.utils.clip_grad_norm_(G_estimate.parameters(), max_norm=2.0, norm_type=2)
+#         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0, norm_type=2)
+#         torch.nn.utils.clip_grad_norm_(G_estimate.parameters(), max_norm=2.0, norm_type=2)
 
         Optimiser.step()
 
@@ -167,9 +168,9 @@ for i in range(epoch):
     if np.mean(t_loss) <= minloss:
         minloss = np.mean(t_loss)
         ep = i
-        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/saved_model_TumorNormalScratch', exist_ok=True)
-        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_TumorNormalScratch/VT_AE_TumorNormal_bs16'+'.pt')
-        #torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/saved_model_bs16_sample_1207_fromPretrained/G_estimate_Mvtech_bs16_'+'.pt')
+        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_fromMNISNOTMDN30', exist_ok=True)
+        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_fromMNISNOTMDN30/VT_AE_tyical_atypical_bs16'+'.pt')
+#         torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/TumorNoTumor_fromMNISTMDN2/G_estimate_tumorNotumor_bs16_'+'.pt')
 
 
 '''
