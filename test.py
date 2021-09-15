@@ -26,8 +26,9 @@ ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch si
 ap.add_argument("-b", "--batch_size", required=False, default=1, help= "batch size")
 ap.add_argument("-w", "--workers", required=False, default=1, help= "Nb process")
 ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1,2', help= "Nb gpus")
-ap.add_argument("-mpAE", "--model_path_AE", required=True, default='/gpfswork/rech/ohv/ueu39kt/TumorNoTumor_fromMNISNOTMDN30/VT_AE_tumorNotumor_bs16.pt', help= "Model AE path")
+ap.add_argument("-mpAE", "--model_path_AE", required=True, default='/gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_fromMNISNOTMDN0609/VT_AE_tyical_atypical_bs16.pt', help= "Model AE path")
 ap.add_argument("-mpMDN", "--model_path_MDN", required=False, default=None, help= "Model MDN path")
+ap.add_argument("-imglist", "--img_path_list", required=True, default=None, help= "Path to the images list files Atypical_Sample_test.csv")
 ap.add_argument("-lout", "--loss_outputpath", required=True, default=None, help= "Output path of the loss.csv file")
 ap.add_argument("-vout", "--vector_outputpath", required=True, default=None, help= "Output path of the vector.csv file")
 ap.add_argument("-piout", "--pi_outputpath", required=False, default=None, help= "Output path of the pi.csv file")
@@ -67,19 +68,18 @@ model.eval()
 if args['model_path_MDN']:
     G_estimate.eval()
 
-train_dset = mvtech.Mvtec(test=True)
+train_dset = mvtech.Mvtec(root=args['img_path_list'],test=True)
 train_loader = torch.utils.data.DataLoader(
         train_dset,
         batch_size=args["batch_size"], shuffle=False,
         num_workers=args["workers"], pin_memory=False)
 #### testing #####
-loader = [train_loader]
 t_loss_norm =[]
 t_loss_anom =[]
 
 
 
-def Patch_Overlap_Score(data_load = loader[:1],  upsample =1, out_file1 = args['loss_outputpath'], out_file2 =args['vector_outputpath'], MDNPath = args['model_path_MDN'], out_file_pi = args['pi_outputpath'], out_file_mu =  args['mu_outputpath'], out_file_sigma =  args['sigma_outputpath'], dirImg  = args['dirImg']):
+def Patch_Overlap_Score(data_load = train_loader,  upsample =1, out_file1 = args['loss_outputpath'], out_file2 =args['vector_outputpath'], MDNPath = args['model_path_MDN'], out_file_pi = args['pi_outputpath'], out_file_mu =  args['mu_outputpath'], out_file_sigma =  args['sigma_outputpath'], dirImg  = args['dirImg']):
     
     norm_loss_t = []
     normalised_score_t = []
@@ -93,9 +93,9 @@ def Patch_Overlap_Score(data_load = loader[:1],  upsample =1, out_file1 = args['
     total_loss_all = []
     tiles_analysed = []
     with torch.no_grad():
-        for c,(ele) in enumerate(data_load):
-            print('ele ' , ele)
-            img, label = ele
+        for c, ele in enumerate(data_load):
+            img = ele[0]
+            label = ele[1]
             label = label[0]
             if label not in tiles_analysed:
                 tiles_analysed.append(label)
@@ -114,11 +114,11 @@ def Patch_Overlap_Score(data_load = loader[:1],  upsample =1, out_file1 = args['
                 labels_l.append(label)
                 vectors.append(vector.detach().cpu().numpy())
                 # Plotting
-                if c%10 == 0:
+                if c%1000 == 0:
                     img = img.detach().cpu().numpy()
                     reconstructions = reconstructions.detach().cpu().numpy()
-                    filename = str(label).split('.')[0]
-                    plot(img,reconstructions, '{}.png'.format(str(filename), str(c), str(n)), dirImg = dirImg)
+                    filename = str(label).split('/')[-1].split('.')[0]
+                    plot(img, reconstructions, '{}.png'.format(str(filename)),  folder='outputImg' , dirImg = dirImg)
         #             print(' label ', label[0])
                 loss1 = loss1.detach().cpu().numpy()
                 loss2 =  loss2.detach().cpu().numpy()

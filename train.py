@@ -56,53 +56,72 @@ class NoamOpt:
             (self.model_size ** (-0.5) *
             min(step ** (-0.5), step * self.warmup ** (-1.5)))
 ap = argparse.ArgumentParser()
+ap.add_argument("-ts", "--trainset", required=False, default= '/gpfsscratch/rech/ohv/ueu39kt/Typical_Sample_Training.csv',
+                help="Path to the traning set .csv list")
+ap.add_argument("-s", "--summury_path", required=False, default= '/gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_fromMNISNOTMDN0609', 
+                help="Path to summary")
+ap.add_argument("-chekVTAE", "--path_checkpoint_VTAE", required=False, default= '/gpfswork/rech/ohv/ueu39kt/TumorNoTumor_fromMNISTMDN2/VT_AE_tumorNotumor_bs16.pt', 
+                help="Path to summary")
+ap.add_argument("-chekGMM", "--path_checkpoint_GMM", required=False, default=   '/gpfswork/rech/ohv/ueu39kt/TumorNoTumor_fromMNISTMDN2/G_estimate_tumorNotumor_bs16_.pt', 
+                help="Path to summary")
+ap.add_argument("-MNVAE", "--model_name_VTADL", required=False, default= 'VT_AE_tyical_atypical_bs16.pt', 
+                help="Path to summary")
+ap.add_argument("-MNGMM", "--model_name_GMM", required=False, default= 'VT_AE_tyical_atypical_bs16.pt', 
+                help="Path to summary")
 ap.add_argument("-e", "--epochs", required=False, default= 100, help="Number of epochs to train")
 ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help="learning rate")
 ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch size of the images")
+ap.add_argument("-dimVTADL","--dimVTADL", required=False, default=512, help="Number of dimension in transformer encoder")
+ap.add_argument("-mdnc","--MDN_COEFS", required=False, default=150, help="Number of coef in the GMM")
+ap.add_argument("-nh","--heads", required=False, default=16, help="Number of head in transformer")
 ap.add_argument("-b", "--batch_size", required=False, default=8, help= "batch size")
 ap.add_argument("-w", "--workers", required=False, default=4, help= "Nb process")
 ap.add_argument("-gpu_ids", "--gpu_ids", required=False, default='0,1', help= "Nb gpus")
 
 args = vars(ap.parse_args())
 
-writer = SummaryWriter()
+os.makedirs(args["summury_path"], exist_ok=True)
+
+os.makedirs(os.path.join(args["summury_path"], 'runs'), exist_ok=True)
+writer = SummaryWriter(log_dir=os.path.join(args["summury_path"], 'runs'))
 
 epoch =args["epochs"]
 minloss = 1e10
 ep =0
 ssim_loss = pytorch_ssim.SSIM() # SSIM Loss
-
 #Dataset
-train_dset = mvtech.Mvtec(root= '/gpfsscratch/rech/ohv/ueu39kt/Typical_Sample_Training.csv')
+train_dset = mvtech.Mvtec(root= args["trainset"])
 train_loader = torch.utils.data.DataLoader(
         train_dset,
-        batch_size=args["batch_size"], shuffle=False,
-        num_workers=args["workers"], pin_memory=False)
+        batch_size=int(args["batch_size"]), shuffle=False,
+        num_workers=int(args["workers"]), pin_memory=False)
 # Model declaration
-model = ae(patch_size=args["patch_size"],depth=10, heads=16,train=True)
-#G_estimate= mdn1.MDN()
+model = ae(patch_size=int(args["patch_size"]),depth=10, heads=int(args["heads"]), dim=int(args['dimVTADL']),train=True)
+
+G_estimate= mdn1.MDN(coefs =int(args["MDN_COEFS"]))
 use_cuda = torch.cuda.is_available()
 if use_cuda:
     print( args['gpu_ids'].split(','))
     gpu_ids = list(map(int, args['gpu_ids'].split(',')))
     cuda='cuda:'+ str(gpu_ids[0])
     model = torch.nn.DataParallel(model,device_ids=gpu_ids)
-    #G_estimate = torch.nn.DataParallel(G_estimate,device_ids=gpu_ids)
+    G_estimate = torch.nn.DataParallel(G_estimate,device_ids=gpu_ids)
 device= torch.device(cuda if use_cuda else 'cpu')
 
+if args['path_checkpoint_VTAE'] != 'None':
+    model.load_state_dict(torch.load(args['path_checkpoint_VTAE']))
 
-model.load_state_dict(torch.load('/gpfswork/rech/ohv/ueu39kt/MNIST_Norm0_VT_ADL/VT_AE_MNIST0_bs16.pt'))
-
-print('Model loaded :)')
-#G_estimate.load_state_dict(torch.load('/gpfsscratch/rech/ohv/ueu39kt/TumorNoTumor_fromMNISTMDN/G_estimate_tumorNotumor_bs16_.pt'))
-
+if args['path_checkpoint_GMM'] != 'None':
+    G_estimate.load_state_dict(torch.load(args['path_checkpoint_GMM']))
+    
+  
 model.to(device)
-#G_estimate.to(device)
+G_estimate.to(device)
 
 # ### put model to train ##
 #(The two models are trained as a separate module so that it would be easy to use as an independent module in different scenarios)
 model.train()
-# G_estimate.train()
+G_estimate.train()
 
 #Optimiser Declaration
 encoder_embed_dim = 512
@@ -127,21 +146,19 @@ for i in range(epoch):
 
         # vector,pi, mu, sigma, reconstructions = model(j.cuda())
         vector, reconstructions = model(j.cuda())
-        #pi, mu, sigma = G_estimate(vector)
-        #print(pi, mu, sigma)
+        pi, mu, sigma = G_estimate(vector)
         #Loss calculations
         loss1 = F.mse_loss(reconstructions, j.cuda(), reduction='mean') #Rec Loss
         loss2 = 1-ssim_loss(j.cuda(), reconstructions) #SSIM loss for structural similarity
-        #loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
+        loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
 
         loss = 5*loss1 + 0.5*loss2 #+ loss3       #Total loss
-        print('Loss ', loss.item())
         t_loss.append(loss.item())   #storing all batch losses to calculate mean epoch loss
 
         # Tensorboard definitions
-        writer.add_scalar('recon-loss', loss1.item(), i*len(train_loader)* args["batch_size"] + (c+1))
-        writer.add_scalar('ssim loss', loss2.item(), i*len(train_loader)* args["batch_size"] + (c+1))
-#         writer.add_scalar('Gaussian loss', loss3.item(), i)
+        writer.add_scalar('recon-loss', loss1.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
+        writer.add_scalar('ssim loss', loss2.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
+        writer.add_scalar('Gaussian loss', loss3.item(), i)
         writer.add_histogram('Vectors', vector)
 
         ## Uncomment below to store the distributions of pi, var and mean ##
@@ -151,26 +168,25 @@ for i in range(epoch):
 
         #Optimiser step
         loss.backward()
-#         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0, norm_type=2)
-#         torch.nn.utils.clip_grad_norm_(G_estimate.parameters(), max_norm=2.0, norm_type=2)
 
         Optimiser.step()
+        if c%50000 == 0:
+            #Tensorboard definitions for the mean epoch values
+            writer.add_image('Reconstructed Image',utils.make_grid(reconstructions),i,dataformats = 'CHW')
+            writer.add_scalar('Mean Epoch loss', np.mean(t_loss), i)
+            print(f'Mean Epoch {i} loss: {np.mean(t_loss)}')
+            print(f'Min loss epoch: {ep} with min loss: {minloss}')
 
-    #Tensorboard definitions for the mean epoch values
-    writer.add_image('Reconstructed Image',utils.make_grid(reconstructions),i,dataformats = 'CHW')
-    writer.add_scalar('Mean Epoch loss', np.mean(t_loss), i)
-    print(f'Mean Epoch {i} loss: {np.mean(t_loss)}')
-    print(f'Min loss epoch: {ep} with min loss: {minloss}')
+            writer.close()
 
-    writer.close()
-
-    # Saving the best model
-    if np.mean(t_loss) <= minloss:
-        minloss = np.mean(t_loss)
-        ep = i
-        os.makedirs('/gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_fromMNISNOTMDN30', exist_ok=True)
-        torch.save(model.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_fromMNISNOTMDN30/VT_AE_tyical_atypical_bs16'+'.pt')
-#         torch.save(G_estimate.state_dict(), f'/gpfsscratch/rech/ohv/ueu39kt/TumorNoTumor_fromMNISTMDN2/G_estimate_tumorNotumor_bs16_'+'.pt')
+            # Saving the best model
+            if np.mean(t_loss) <= minloss:
+                minloss = np.mean(t_loss)
+                ep = i
+                os.makedirs(args["summury_path"], exist_ok=True)
+                torch.save(model.state_dict(), 
+                           os.path.join(args["summury_path"], args['model_name_VTADL']))
+                torch.save(G_estimate.state_dict(),  os.path.join(args["summury_path"], args['model_name_GMM']))
 
 
 '''

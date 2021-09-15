@@ -11,9 +11,9 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-COEFS = 150
-IN_DIM = 512
+# Path size = 32
+COEFS = 150 #300
+IN_DIM = 1024 # 512 if ps == 64
 OUT_DIM = IN_DIM
 
 
@@ -32,14 +32,13 @@ class MDN(nn.Module):
         self.sd = sd
 
     def forward(self, x):
-        
-        ep = np.finfo(float).eps
-        x = torch.clamp(x, ep)
-        print('++++++++++++++++++++++++\n', x.size(),
-             '\n++++++++++++++++++++++++\n')
+        print('  x  ', x.size())
         pi = F.softmax(self.pi(x), dim=-1)
+        print('  pi  ', pi.size())
         sigma_sq = F.softplus(self.sigma_sq(x)).view(x.size(0),x.size(1),self.in_features, -1)  # logvar
+        print('  sigma_sq  ', sigma_sq.size())
         mu = self.mu(x).view(x.size(0),x.size(1),self.in_features, -1)  # mean
+        print('  mu  ', mu.size())
         return pi, mu, sigma_sq
 
 
@@ -62,8 +61,8 @@ def log_gaussian(x, mean, logvar):
          [samples]   log-likelihood of each sample
     '''
 
-    
     x = x.unsqueeze(-1).expand_as(logvar)
+
     a = (x - mean) ** 2  # works on multiple samples thanks to tensor broadcasting
     log_p = (logvar + a / (torch.exp(logvar))).sum(2)
     log_p = -0.5 * (np.log(2 * np.pi) + log_p)
@@ -88,9 +87,9 @@ def log_gmm(x, means, logvars, weights, total=True):
 
     '''
     res = -log_gaussian(x ,means, logvars) # negative of log likelihood
-    
+   
     res = weights * res
-
+    
     if total:
         return torch.sum(res,2)
     else:

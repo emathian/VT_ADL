@@ -38,7 +38,7 @@ class VT_AE(nn.Module):
 
         self.decoder = M.decoder2(8)
         # self.G_estimate= mdn1.MDN() # Trained in modular fashion
-        self.Digcap = S.DigitCaps(in_num_caps=((image_size//patch_size)**2)*8*8, in_dim_caps=8)
+        self.Digcap = S.DigitCaps(in_num_caps=((image_size//patch_size)**2)*8*8, in_dim_caps=16)
         #self.mask = torch.ones(1, image_size//patch_size, image_size//patch_size).bool().cuda()
         self.Train = train
         self.pretrained_path = pretrained_path

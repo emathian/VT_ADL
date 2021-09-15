@@ -46,7 +46,6 @@ def add_noise(latent, noise_type="gaussian", sd=0.2):
 class Mvtec(data.Dataset):
     def __init__(self, root="/gpfsscratch/rech/ohv/ueu39kt/LNEN_Tiles.txt", test = False):
         self.test = test
-        print('self.test', self.test)
         self.root = root
         torch.manual_seed(123)
         with open(root, 'r') as f:
@@ -80,10 +79,8 @@ class Mvtec(data.Dataset):
             img_c = self.transform(img)
         #img_n = add_noise(img_c)
         if self.test:
-            print('HERE  ', label)
-            return img_c, label
+            return [img_c, label]
         else:
-            print('HERE2  ')
             return img_c#, label
 
     def __len__(self):

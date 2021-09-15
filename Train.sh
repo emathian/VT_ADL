@@ -1,11 +1,11 @@
 #!/bin/bash
-#SBATCH --job-name=CTATVTADL31
+#SBATCH --job-name=DevMDN
 #SBATCH -C v100-32g
-#SBATCH --qos=qos_gpu-t4
+#SBATCH --qos=qos_gpu-dev
 #SBATCH --ntasks-per-node=20      # nombre de taches MPI par noeud
-#SBATCH --time=100:00:00   # temps d execution maximum demande (HH:MM:SS)
-#SBATCH --output=CTATVTADL31%j.out          # nom du fichier de sortie
-#SBATCH --error=CTATVTADL31%j.out     
+#SBATCH --time=00:20:00   # temps d execution maximum demande (HH:MM:SS)
+#SBATCH --output=DevMDN%j.out          # nom du fichier de sortie
+#SBATCH --error=DevMDN%j.out     
 #SBATCH --account ohv@gpu
 #SBATCH --gres=gpu:3 # 4
 module purge

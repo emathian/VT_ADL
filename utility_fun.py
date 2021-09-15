@@ -49,25 +49,35 @@ def Binarization(mask, thres = 0., type = 0):
         mask = np.where(mask > thres, mask, 0.)
     return mask  
 
-def plot(image,grnd_truth, outputfilename, score=None , dirImg = None):
+def plot(image,grnd_truth, outputfilename, folder=None,  dirImg = None):
     if not dirImg:
         try:
             os.mkdir('/gpfsscratch/rech/ohv/ueu39kt/outputImg')
         except:
             print('outputFolder already exist' )
-        outputmaindir = '/gpfsscratch/rech/ohv/ueu39kt/outputImg'
+        try:
+            os.mkdir('/gpfsscratch/rech/ohv/ueu39kt/outputImg/'+folder)
+        except:
+            print('outputFolder already exist' )
     else:
         try:
             os.mkdir(dirImg)
         except:
-            print('outputFolder already exist' )
-        outputmaindir =dirImg
+            c = 0
+            #print('outputFolder already exist' )
+            
+        try:
+            os.mkdir(dirImg+'/'+folder)
+        except:
+            c= 0
+            #print('outputFolder already exist' )
+        outputmaindir =dirImg+'/'+folder
+        print('PLOT outputmaindir ' , outputmaindir)
+
     plt.subplot(121)
-#     print('image shape ', image.shape)
     im =np.transpose(image[0],(1,2,0)) * 255
     plt.imshow(im.astype(np.uint8))
     plt.subplot(122)
-#     print('grnd_truth shape ', grnd_truth.shape)
     re = np.transpose(grnd_truth[0],(1,2,0)) * 255
     plt.imshow(re.astype(np.uint8))  
     plt.xlabel('Reconstruction')
