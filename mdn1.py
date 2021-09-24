@@ -13,7 +13,7 @@ import torch.nn.functional as F
 
 # Path size = 32
 COEFS = 150 #300
-IN_DIM = 1024 # 512 if ps == 64
+IN_DIM = 1024 # 512 if ps == 64 if ps=32 1024
 OUT_DIM = IN_DIM
 
 
@@ -32,13 +32,9 @@ class MDN(nn.Module):
         self.sd = sd
 
     def forward(self, x):
-        print('  x  ', x.size())
         pi = F.softmax(self.pi(x), dim=-1)
-        print('  pi  ', pi.size())
         sigma_sq = F.softplus(self.sigma_sq(x)).view(x.size(0),x.size(1),self.in_features, -1)  # logvar
-        print('  sigma_sq  ', sigma_sq.size())
         mu = self.mu(x).view(x.size(0),x.size(1),self.in_features, -1)  # mean
-        print('  mu  ', mu.size())
         return pi, mu, sigma_sq
 
 

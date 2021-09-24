@@ -152,13 +152,13 @@ for i in range(epoch):
         loss2 = 1-ssim_loss(j.cuda(), reconstructions) #SSIM loss for structural similarity
         loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
 
-        loss = 5*loss1 + 0.5*loss2 #+ loss3       #Total loss
+        loss = 5*loss1 + 0.5*loss2 + loss3.sum()       #Total loss
         t_loss.append(loss.item())   #storing all batch losses to calculate mean epoch loss
 
         # Tensorboard definitions
         writer.add_scalar('recon-loss', loss1.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
         writer.add_scalar('ssim loss', loss2.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
-        writer.add_scalar('Gaussian loss', loss3.item(), i)
+        writer.add_scalar('Gaussian loss', loss3.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
         writer.add_histogram('Vectors', vector)
 
         ## Uncomment below to store the distributions of pi, var and mean ##
