@@ -68,6 +68,7 @@ ap.add_argument("-MNVAE", "--model_name_VTADL", required=False, default= 'VT_AE_
                 help="Path to summary")
 ap.add_argument("-MNGMM", "--model_name_GMM", required=False, default= 'VT_AE_tyical_atypical_bs16.pt', 
                 help="Path to summary")
+ap.add_argument("-GMM", "--GMM", required=False, default=False, help= "Turned to true if the GMM should be included")
 ap.add_argument("-e", "--epochs", required=False, default= 100, help="Number of epochs to train")
 ap.add_argument("-lr", "--learning_rate", required=False, default= 0.0001, help="learning rate")
 ap.add_argument("-ps","--patch_size", required=False, default=64, help="Patch size of the images")
@@ -98,14 +99,17 @@ train_loader = torch.utils.data.DataLoader(
 # Model declaration
 model = ae(patch_size=int(args["patch_size"]),depth=10, heads=int(args["heads"]), dim=int(args['dimVTADL']),train=True)
 
-G_estimate= mdn1.MDN(coefs =int(args["MDN_COEFS"]))
+if str(args['GMM']) == 'True':
+    print('GMM activated')
+    G_estimate= mdn1.MDN(coefs =int(args["MDN_COEFS"]))
 use_cuda = torch.cuda.is_available()
 if use_cuda:
     print( args['gpu_ids'].split(','))
     gpu_ids = list(map(int, args['gpu_ids'].split(',')))
     cuda='cuda:'+ str(gpu_ids[0])
     model = torch.nn.DataParallel(model,device_ids=gpu_ids)
-    G_estimate = torch.nn.DataParallel(G_estimate,device_ids=gpu_ids)
+    if str(args['GMM']) == 'True':
+        G_estimate = torch.nn.DataParallel(G_estimate,device_ids=gpu_ids)
 device= torch.device(cuda if use_cuda else 'cpu')
 
 if args['path_checkpoint_VTAE'] != 'None':
@@ -116,12 +120,14 @@ if args['path_checkpoint_GMM'] != 'None':
     
   
 model.to(device)
-G_estimate.to(device)
+if str(args['GMM']) == 'True':
+    G_estimate.to(device)
 
 # ### put model to train ##
 #(The two models are trained as a separate module so that it would be easy to use as an independent module in different scenarios)
 model.train()
-G_estimate.train()
+if str(args['GMM']) == 'True':
+    G_estimate.train()
 
 #Optimiser Declaration
 encoder_embed_dim = 512
@@ -146,20 +152,25 @@ for i in range(epoch):
 
         # vector,pi, mu, sigma, reconstructions = model(j.cuda())
         vector, reconstructions = model(j.cuda())
-        pi, mu, sigma = G_estimate(vector)
+        if str(args['GMM']) == 'True':
+            pi, mu, sigma = G_estimate(vector)
         #Loss calculations
         loss1 = F.mse_loss(reconstructions, j.cuda(), reduction='mean') #Rec Loss
         loss2 = 1-ssim_loss(j.cuda(), reconstructions) #SSIM loss for structural similarity
-        loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
-
-        loss = 5*loss1 + 0.5*loss2 + loss3.sum()       #Total loss
+        if str(args['GMM']) == 'True':
+            loss3 = mdn1.mdn_loss_function(vector,mu,sigma,pi) #MDN loss for gaussian approximation
+        if str(args['GMM']) == 'True':
+            loss = 5*loss1 + 0.5*loss2 + loss3.sum()       #Total loss
+        else:
+            loss = 5*loss1 + 0.5*loss2
         t_loss.append(loss.item())   #storing all batch losses to calculate mean epoch loss
 
         # Tensorboard definitions
         writer.add_scalar('recon-loss', loss1.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
         writer.add_scalar('ssim loss', loss2.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
-        writer.add_scalar('Gaussian loss', loss3.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
-        writer.add_histogram('Vectors', vector)
+        if str(args['GMM']) == 'True':
+            writer.add_scalar('Gaussian loss', loss3.item(), i*len(train_loader)* int(args["batch_size"]) + (c+1))
+#         writer.add_histogram('Vectors', vector)
 
         ## Uncomment below to store the distributions of pi, var and mean ##
 #         writer.add_histogram('Pi', pi)
@@ -186,7 +197,8 @@ for i in range(epoch):
                 os.makedirs(args["summury_path"], exist_ok=True)
                 torch.save(model.state_dict(), 
                            os.path.join(args["summury_path"], args['model_name_VTADL']))
-                torch.save(G_estimate.state_dict(),  os.path.join(args["summury_path"], args['model_name_GMM']))
+                if str(args['GMM']) == 'True':
+                    torch.save(G_estimate.state_dict(),  os.path.join(args["summury_path"], args['model_name_GMM']))
 
 
 '''

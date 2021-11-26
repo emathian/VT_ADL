@@ -61,11 +61,14 @@ if use_cuda:
     if args['path_checkpoint_GMM']!= 'None':
         G_estimate = torch.nn.DataParallel(G_estimate,device_ids=gpu_ids)
 device= torch.device(cuda if use_cuda else 'cpu')
+
 model.load_state_dict(torch.load(args['path_checkpoint_VTAE']))
+model.to(device)
+
 if args['path_checkpoint_GMM']!= 'None':
     G_estimate.load_state_dict(torch.load(args['path_checkpoint_GMM']))
-model.to(device)
-if args['path_checkpoint_GMM']:
+if args['path_checkpoint_GMM']!= 'None':
+    print('GMM to device')
     G_estimate.to(device)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -77,8 +80,8 @@ if args['path_checkpoint_GMM']!= 'None':
 train_dset = mvtech.Mvtec(root=args['testset'],test=True)
 train_loader = torch.utils.data.DataLoader(
         train_dset,
-        batch_size=args["batch_size"], shuffle=False,
-        num_workers=args["workers"], pin_memory=False)
+        batch_size=int(args["batch_size"]), shuffle=False,
+        num_workers=int(args["workers"]), pin_memory=False)
 #### testing #####
 t_loss_norm =[]
 t_loss_anom =[]
@@ -139,7 +142,7 @@ def Patch_Overlap_Score(data_load = train_loader,  upsample =1, out_file1 = args
                 c_loss_df['Loss2'] = loss2.flatten()
                 if MDNPath != 'None':
                     c_loss_df['Loss3'] = loss3.flatten()
-                c_loss_df.to_csv(out_file, mode='a', header=False)
+                c_loss_df.to_csv(out_file1, mode='a', header=False)
 
                 with open(out_file1, 'a') as f1:
                     for ii in range(len(label)):
@@ -190,10 +193,7 @@ def Patch_Overlap_Score(data_load = train_loader,  upsample =1, out_file1 = args
             del label, vector, reconstructions, loss1, loss2, Vector, c_pd, loss
             if MDNPath != 'None':
                 del  loss3 #Mu, Sigma, Pi, mu, sigma, pi
-
-
-
-    
+ 
     return -1
 if __name__=="__main__":
     

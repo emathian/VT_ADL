@@ -1,13 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=TrainMMCTAC
 #SBATCH -C v100-32g
-#SBATCH --qos=qos_gpu-dev
-#SBATCH --ntasks-per-node=20      # nombre de taches MPI par noeud
-#SBATCH --time=00:20:00   # temps d execution maximum demande (HH:MM:SS)
-#SBATCH --output=LoadTest_%j.out          # nom du fichier de sortie
-#SBATCH --error=LoadTest_%j.out     
+#SBATCH --qos=qos_gpu-t4
+#SBATCH --ntasks-per-node=8      # nombre de taches MPI par noeud
+#SBATCH --time=100:00:00   # temps d execution maximum demande (HH:MM:SS)
+#SBATCH --output=TrainMMCTAC_%j.out          # nom du fichier de sortie
+#SBATCH --error=TrainMMCTAC_%j.error     
 #SBATCH --account ohv@gpu
-#SBATCH --gres=gpu:3 # 4
+#SBATCH --gres=gpu:4 # 4
 module purge
 conda deactivate
 module load pytorch-gpu/py3/1.8.1
@@ -16,6 +16,7 @@ python train.py --trainset /gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_MM_exp2/
                 --summury_path /gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_MM_exp2 \
                 --path_checkpoint_VTAE 'None' \
                 --path_checkpoint_GMM 'None' \
+                --GMM False \
                 --model_name_VTADL VT_AE_tyical_atypical_exp2_MM.pt \
                 --model_name_GMM GMM_tyical_atypical_exp2_MM.pt \
                 --learning_rate 0.0001\
@@ -25,4 +26,4 @@ python train.py --trainset /gpfsscratch/rech/ohv/ueu39kt/TypicalAypical_MM_exp2/
                 --heads 16 \
                 --batch_size 4 \
                 --workers 4 \
-                --gpu_ids 0,1,2
+                --gpu_ids 0,1,2,3
